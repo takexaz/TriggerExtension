@@ -1,0 +1,2 @@
+# TriggerExtension
+TriggerExtension for winmugenplus
