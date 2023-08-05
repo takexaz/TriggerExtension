@@ -1,2 +1,3 @@
 # TriggerExtension
-TriggerExtension for winmugenplus
+
+- Add/Patch new trigger
