@@ -8,6 +8,8 @@ void addTrigger(TRX trx) {
     return;
 }
 
+
+
 int parseTrigger(const char* s) {
     int cnt = 0;
     int cntsp = 0;
@@ -33,8 +35,20 @@ int parseTrigger(const char* s) {
 int regModTrigger(void** stack, int RETVALUE) {
     if (RETVALUE != 0) return RETVALUE;
 
-    // トリガー名パース
+    MUGEN_EVAL_TRIGGER_EX* triggers = new MUGEN_EVAL_TRIGGER_EX;
+    MUGEN_EVAL_TRIGGER_EX** trigptr = (MUGEN_EVAL_TRIGGER_EX**)*(stack + 2);
+    *trigptr = triggers;
+
     const char* s = (const char*)*(stack);
+    // リダイレクト処理
+    //void** redirect = (void**)&triggers->redirectID;
+    //*redirect = (void*)*(stack - 0x131);
+    //if (triggers->redirectID != ID_RD_None) {
+    //    int redcnt = parseTrigger(s);
+    //    s += redcnt + 1;
+    //}
+
+    // トリガー名パース
     int trigscnt = parseTrigger(s);
 
     // Stringに変換
@@ -49,9 +63,6 @@ int regModTrigger(void** stack, int RETVALUE) {
         //Modトリガーだった場合
         //スタックの整理
         MUGEN_PLAYER_INFO* playerInfo = (MUGEN_PLAYER_INFO*)*(stack + 1);
-        MUGEN_EVAL_TRIGGER_EX* triggers = new MUGEN_EVAL_TRIGGER_EX;
-        MUGEN_EVAL_TRIGGER_EX** trigptr = (MUGEN_EVAL_TRIGGER_EX**)*(stack + 2);
-        *trigptr = triggers;
         MUGEN_EVAL_TYPE* types = (MUGEN_EVAL_TYPE*)*(stack + 3);
         int maxLength = (int)*(stack + 4);
         const char** endPtr = (const char**)*(stack + 5);
@@ -61,12 +72,12 @@ int regModTrigger(void** stack, int RETVALUE) {
         // triggers->TRX->params ユーザーにパラメータの処理させる
         *(types) = EVAL_TYPE_TRIGGER;
 
-        auto reg = reinterpret_cast<int (*)(MUGEN_EVAL_TRIGGER_EX*)>(gTriggerList[index].reg);
-        RETVALUE = reg(triggers);
-
+        auto reg = reinterpret_cast<int (*)(MUGEN_EVAL_TRIGGER_EX*, MUGEN_PLAYER_INFO*, const char **)>(gTriggerList[index].reg);
+        RETVALUE = reg(triggers, playerInfo, endPtr);
+        // 仮にリダイレクト0固定
+        triggers->redirectID != ID_RD_None;
         triggers->trigID = (MUGEN_TRIG_ID)TRIGGERID;
         triggers->isFloat = 0; // ユーザーに決めさせる
-        triggers->redirectID = ID_RD_None;
         triggers->compareStyle = EVAL_EQ;
         triggers->TRX->extrID = index;
 
