@@ -8,5 +8,9 @@ static int TRIGGERID = 0x7FFFFFFF;
 
 int findTargetTriggerByName(string);
 int regModTrigger(void** , int);
-int __stdcall procModTrigger(void);
+int __stdcall procModTrigger(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect);
 void freeModState(void**);
+
+int getLabel(const char** startPtr, const char** endPtr);
+int countSpace(const char* s);
+int parseRedirect(MUGEN_PLAYER_INFO* playerInfo, MUGEN_EVAL_TRIGGER_EX* triggers, const char** startPtr, const char** endPtr);

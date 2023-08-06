@@ -36,3 +36,62 @@ void setErrorText(const char* error) {
 int clamp(int value, int minimum, int maximum) {
     return min(max(minimum, value), maximum);
 }
+
+int parseIsNotEqual(const char** startPtr, const char** endPtr) {
+    // 先頭アドレスが空白であれば空白をスキップ
+    *endPtr = *startPtr += countSpace(*startPtr);
+    const char* s = *startPtr;
+    // 空白のみで終端についたらエラーとしてリターン
+    if (*s == '\0') return -1;
+
+    // =までループ
+    while (*s != '\0') if (*s == '=') {
+        break;
+    }
+    else {
+        ++s;
+    }
+    *endPtr = s + 1;
+    // =がないまま終端についたらエラーとしてリターン
+    if (*s == '\0') return -1;
+
+    // !が奇数ならNotである
+    bool isNot = FALSE;
+    --s;
+    while (*s == '!') {
+        isNot = !isNot;
+        --s;
+    }
+
+    return isNot;
+}
+
+int getTrigQuotedString(char* dest, size_t size, const char** startPtr, const char** endPtr) {
+    // 先頭アドレスが空白であれば空白をスキップ
+    *endPtr = *startPtr += countSpace(*startPtr);
+    const char* s = *startPtr;
+    // 空白のみで終端についたらエラー
+    if (*s == '\0') return -1;
+    // ダブルクォーテーションでなければエラー
+    if (*s != '\"') return -1;
+    ++s;
+    const char* qs = s;
+
+    int count = 0;
+    // "までループ
+    while (*s != '\0') if (*s == '\"') {
+        break;
+    }
+    else {
+        ++count;
+        ++s;
+    }
+    *endPtr = s + 1;
+    // "がないまま終端についたらエラーとしてリターン
+    if (*s == '\0') return -1;
+
+    count = min(count, size - 1);
+    strncpy((char*)dest, qs, count);
+    dest[count] = '\0';
+    return count;
+}
