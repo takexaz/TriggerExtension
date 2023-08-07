@@ -4,13 +4,20 @@
 // ----------------------------------------------
 // RoundTimer
 int regRoundtimer(MUGEN_EVAL_TRIGGER_EX* triggers, MUGEN_PLAYER_INFO* playerInfo, const char** endPtr) {
-    // 引数がある場合は処理を行う
-    return 1;
+    // 返す値を設定(int)
+    triggers->isFloat = FALSE;
+    return TRUE;
 }
 
-void* procRoundtimer(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVAL_TRIGGER_EX* triggers) {
+value32_t procRoundtimer(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVAL_TRIGGER_EX* triggers) {
     // 処理
-    return (void*)g->roundTimer;
+    value32_t roundtimer;
+    roundtimer.i = g->roundTimer;
+    return roundtimer;
+}
+
+void freeRoundtimer(MUGEN_EVAL_TRIGGER_EX* triggers) {
+    return;
 }
 // ----------------------------------------------
 // ----------------------------------------------
@@ -22,26 +29,28 @@ struct TRUE_RANDOM {
 };
 
 int regTrueRandom(MUGEN_EVAL_TRIGGER_EX* triggers, MUGEN_PLAYER_INFO* playerInfo, const char** endPtr) {
-    // 引数がある場合は処理を行う
+    // 初期設定 返す値(int)
+    triggers->isFloat = FALSE;
     const char* s = *endPtr;
-    // カッコであることを確認
-    if (*s == '(') {
-        TRUE_RANDOM* trand = new TRUE_RANDOM;
-        // カッコの次からパラメータを取得
-        s += 1;
-        SCtrlReadExpList(s, "ii:)", playerInfo, endPtr, &trand->min, &trand->max);
-        // カッコ終了地点をカッコの次にしておく
-        *endPtr += 1;
-        triggers->TRX->params = trand;
-    }
-    else {
-        return FALSE;
-    }
+
+    // ランダム用の構造体作成
+    TRUE_RANDOM* trand = new TRUE_RANDOM;
+    triggers->TRX->params = trand;
+
+    // カッコでなければエラー
+    if (*s != '(') return FALSE;
+
+    // カッコの次からパラメータを取得
+    s += 1;
+
+    // 取得＆取得数が2でなければエラー
+    if(SCtrlReadExpList(s, "ii:)", playerInfo, endPtr, &trand->min, &trand->max) != 2) return FALSE;
+
     return TRUE;
 }
 
 #define RAND_MAX 0x7FFFFFFF
-void* procTrueRandom(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVAL_TRIGGER_EX* triggers) {
+value32_t procTrueRandom(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVAL_TRIGGER_EX* triggers) {
     TRUE_RANDOM* trand = (TRUE_RANDOM*)triggers->TRX->params;
     int min = EvalExpressionN(player, &trand->min, 0);
     int max = EvalExpressionN(player, &trand->max, 0);
@@ -51,9 +60,18 @@ void* procTrueRandom(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVAL_TR
         srand(ts.tv_nsec ^ ts.tv_sec);
     }
     // minからmaxまでの範囲のランダムな整数を生成
-    int random_number = min + rand() % (max - min + 1);
+    value32_t random_number;
+    random_number.i = min + rand() % (max - min + 1);
 
-    return (void*)random_number;
+    return random_number;
+}
+
+void freeTrueRandom(MUGEN_EVAL_TRIGGER_EX* triggers) {
+    TRUE_RANDOM* trand = (TRUE_RANDOM*)triggers->TRX->params;
+    FreeExpression(&trand->max);
+    FreeExpression(&trand->min);
+    delete trand;
+    return;
 }
 // ----------------------------------------------
 // ----------------------------------------------
@@ -66,31 +84,39 @@ struct DISPLAYNAME {
 };
 
 int regDisplayName(MUGEN_EVAL_TRIGGER_EX* triggers, MUGEN_PLAYER_INFO* playerInfo, const char** endPtr) {
-    DISPLAYNAME* disp = new DISPLAYNAME;
-
-    // 先頭アドレスをendPtrにしてパース開始地点に合わせる
+    // 初期設定 返す値(bool)
+    triggers->isFloat = FALSE;
     const char* s = *endPtr;
-    // 文字列の前の=をパース
+
+    DISPLAYNAME* disp = new DISPLAYNAME;
+    triggers->TRX->params = disp;
+
+    // 比較演算子をパース
     int isNotE = parseIsNotEqual(&s, endPtr);
+    // パースに失敗したらエラー
     if (isNotE == -1) return FALSE;
     disp->isNotEqual = isNotE;
 
     // 先頭アドレスをendPtrにして次のパース開始地点に合わせる
     s = *endPtr;
-    // ""の文字列をパース
-    int count = getTrigQuotedString(disp->displayname, sizeof(disp->displayname), &s, endPtr);
-    if (count == -1) return FALSE;
+    // 文字列をパース＆失敗したらエラー
+    if (getTrigQuotedString(disp->displayname, sizeof(disp->displayname), &s, endPtr) == -1) return FALSE;
 
-    triggers->TRX->params = disp;
     return TRUE;
 }
 
-void* procDisplayName(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVAL_TRIGGER_EX* triggers) {
+value32_t procDisplayName(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVAL_TRIGGER_EX* triggers) {
     DISPLAYNAME* disp = (DISPLAYNAME*)triggers->TRX->params;
-    bool isMatch = strcmp(disp->displayname, redirect->info->displayName) == 0 ? TRUE : FALSE;
+    value32_t isMatch;
+    isMatch.b = strcmp(disp->displayname, redirect->info->displayName) == 0 ? TRUE : FALSE;
+    if (disp->isNotEqual) isMatch.b = !isMatch.b;
+    return isMatch;
+}
 
-    if (disp->isNotEqual) return (void*)!isMatch;
-    return (void*)isMatch;
+void freeDisplayName(MUGEN_EVAL_TRIGGER_EX* triggers) {
+    DISPLAYNAME* disp = (DISPLAYNAME*)triggers->TRX->params;
+    delete disp;
+    return;
 }
 // ----------------------------------------------
 // ----------------------------------------------
@@ -102,24 +128,31 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
     case DLL_PROCESS_ATTACH: {
         addTrigger(TRX{
             "roundtimer",
-            0,
             regRoundtimer,
             procRoundtimer,
+            freeRoundtimer,
         });
 
         addTrigger(TRX{
             "truerandom",
-            0,
             regTrueRandom,
             procTrueRandom,
+            freeTrueRandom,
         });
 
         addTrigger(TRX{
             "displayname",
-            0,
             regDisplayName,
             procDisplayName,
+            freeDisplayName,
             });
+
+        // SCtrlReadExpListのバグ修復
+        BYTE fixReadExpBytes[] = { 
+            0x31,0xC0,0x8B,0x54,0x24,0x20,0x38,0x0A,
+            0x75,0x6C,0xFF,0x44,0x24,0x20,0xEB,0x0A,
+            0x90,0x90,0x90,0x90 };
+        writeBytesToROM((void*)0x47d900, fixReadExpBytes, sizeof(fixReadExpBytes));
 
         // 登録用フック
         Hook(SCtrlParseTrigger, regModTrigger);
@@ -134,6 +167,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
             0x90,0x90 };
         writeBytesToROM((void*)0x47cef4, afterProcBytes, sizeof(afterProcBytes));
 
+        // 解放用フック
+        Hook(TriggerFree, freeModTrigger);
 
         LoadAllDLL("mods", ".trx");
         break;

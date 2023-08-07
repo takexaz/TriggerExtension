@@ -1,8 +1,8 @@
 #include "_TriggerExtension.h"
 
-int findTargetTriggerByName(string trigger) {
+int findTargetStateByName(string type) {
     for (size_t i = 0; i < gTriggerList.size(); i++) {
-        if (gTriggerList[i].trigger == trigger) {
+        if (gTriggerList[i].trigName == type) {
             return static_cast<int>(i);
         }
     }
