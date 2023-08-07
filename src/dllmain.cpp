@@ -1,5 +1,5 @@
 #include "_TriggerExtension.h"
-
+#include <random>
 
 // ----------------------------------------------
 // RoundTimer
@@ -55,13 +55,21 @@ value32_t procTrueRandom(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVA
     int min = EvalExpressionN(player, &trand->min, 0);
     int max = EvalExpressionN(player, &trand->max, 0);
 
+    if (min > max) swap(min, max);
+
+    random_device r;
+    seed_seq seed{ r(), r(), r(), r(), r(), r(), r(), r() };
+    mt19937 eng{ seed };
+    uniform_int_distribution<> dist(min, max);
+
     struct timespec ts;
     if (!timespec_get(&ts, TIME_UTC)) {
         srand(ts.tv_nsec ^ ts.tv_sec);
     }
     // minからmaxまでの範囲のランダムな整数を生成
-    value32_t random_number;
-    random_number.i = min + rand() % (max - min + 1);
+    value32_t random_number = { 
+        .i = dist(eng)
+    };
 
     return random_number;
 }
@@ -107,8 +115,9 @@ int regDisplayName(MUGEN_EVAL_TRIGGER_EX* triggers, MUGEN_PLAYER_INFO* playerInf
 
 value32_t procDisplayName(MUGEN_PLAYER* player, MUGEN_PLAYER* redirect, MUGEN_EVAL_TRIGGER_EX* triggers) {
     DISPLAYNAME* disp = (DISPLAYNAME*)triggers->TRX->params;
-    value32_t isMatch;
-    isMatch.b = strcmp(disp->displayname, redirect->info->displayName) == 0 ? TRUE : FALSE;
+    value32_t isMatch = {
+        .b = strcmp(disp->displayname, redirect->info->displayName) == 0 ? true : false
+    };
     if (disp->isNotEqual) isMatch.b = !isMatch.b;
     return isMatch;
 }
